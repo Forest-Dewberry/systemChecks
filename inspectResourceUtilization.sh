@@ -35,16 +35,16 @@ inspect_resources() {
     echo "-----------------------------------" >> $LOGFILE
 
     # Get a list of all running processes
-    ps aux > ./processes.txt
+    ps aux > ./processes.tmp
 
     # Filter the list of processes by CPU and memory usage
     # headers
-    head -1 ./processes.txt > ./filtered_processes.txt
+    head -1 ./processes.tmp > ./filtered_processes.tmp
     # Create filtered_processes
-    awk -v cpu_threshold=$CPU_THRESHOLD -v mem_threshold=$MEM_THRESHOLD '$3 > cpu_threshold || $4 > mem_threshold {print $0}' ./processes.txt >> ./filtered_processes.txt
+    awk -v cpu_threshold=$CPU_THRESHOLD -v mem_threshold=$MEM_THRESHOLD '$3 > cpu_threshold || $4 > mem_threshold {print $0}' ./processes.tmp >> ./filtered_processes.tmp
 
     # If processes over either limit are found then echo a warning message to stdout
-    linecount=$( cat -n ./filtered_processes.txt | tail -1 | awk '{print $1}' )
+    linecount=$( cat -n ./filtered_processes.tmp | tail -1 | awk '{print $1}' )
     adjusted_count=$((linecount - 1))
     if [ $adjusted_count -gt 0 ]; then
         echo "warning: Processes with CPU or MEM above limit were identified! Look in $LOGFILE"
@@ -52,18 +52,37 @@ inspect_resources() {
 
     # Log the filtered list of processes
     echo "Processes above thresholds follow. CPU_THRESHOLD is " $CPU_THRESHOLD " and MEM_THRESHOLD is " $MEM_THRESHOLD >> $LOGFILE
-    cat ./filtered_processes.txt >> $LOGFILE
+    cat ./filtered_processes.tmp >> $LOGFILE
 
     # Remove the temporary files
-    # rm ./processes.txt ./filtered_processes.txt
+    # rm ./processes.tmp ./filtered_processes.tmp
 
     echo "-----------------------------------" >> $LOGFILE
 }
 
-print_fancy_header
-inspect_resources
+file_path="$LOGFILE"
+# Check if $LOGFILE exists
+if [ ! -f "$file_path" ]; then
+    # If $LOGFILE doesn't exist, print fancy header
+    print_fancy_header
+else
+    # Check for contents in $LOGFILE
+    # If $LOGFILE has less than 3 lines of text, print fancy header
+    line_count=$(wc -l < "$file_path")
+    if [ "$line_count" -lt 3 ]; then
+        print_fancy_header
+    fi
+fi
+
+# Run resource inspection one time
+# inspect_resources
+# echo "inspectResourceUtilization.sh printed to $LOGFILE"
+
 # Comment the above and uncomment the below to Check every minute (to avoid having to use cron. Cron is what I'd recommend, though.)
-# while true; do
-#     inspect_resources
-#     sleep 60  # Sleep for 60 seconds
-# done
+
+# Continuously run resource inspection
+while true; do
+    inspect_resources
+    echo "inspectResourceUtilization.sh printed to $LOGFILE"
+    sleep 60  # Sleep for 60 seconds
+done
